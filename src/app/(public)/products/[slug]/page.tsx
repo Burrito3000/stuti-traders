@@ -5,7 +5,7 @@ import { ChevronRight } from "lucide-react";
 import { mockProducts } from "@/lib/mock-data";
 import { formatPrice } from "@/lib/constants";
 import { FadeInView, StaggerList, StaggerItem } from "@/components/motion/animations";
-import { WhatsAppCTA } from "@/components/public/whatsapp-cta";
+import { AddToCartButton } from "@/components/public/add-to-cart-button";
 import { ProductCard } from "@/components/public/product-card";
 import { ProductGallery } from "./gallery";
 
@@ -152,7 +152,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
               {/* CTA */}
               <div className="mt-10">
-                <WhatsAppCTA productName={product.name} variant="full" />
+                <AddToCartButton product={product} variant="full" />
               </div>
             </div>
           </FadeInView>

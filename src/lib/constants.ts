@@ -4,7 +4,7 @@ export const APP_NAME = "Stuti Traders";
 export const APP_DESCRIPTION = "Your trusted destination for premium household essentials — kitchenware, storage, cleaning, and home care products.";
 
 // WhatsApp
-export const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "+919876543210";
+export const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "+9779851063423";
 
 export const getWhatsAppUrl = (productName?: string) => {
   const baseUrl = `https://wa.me/${WHATSAPP_NUMBER.replace(/[^0-9]/g, "")}`;

@@ -3,8 +3,8 @@
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import { formatPrice } from "@/lib/constants";
+import { AddToCartButton } from "@/components/public/add-to-cart-button";
 import type { Product } from "@/types";
 
 interface ProductCardProps {
@@ -50,28 +50,27 @@ export function ProductCard({ product }: ProductCardProps) {
             </motion.div>
           )}
         </motion.div>
+      </Link>
 
-        {/* Info */}
-        <div className="space-y-1.5 px-1">
-          <h3 className="font-heading text-base font-semibold text-text-primary leading-snug">
+      {/* Info */}
+      <div className="space-y-1.5 px-1 pt-4">
+        <Link href={`/products/${product.slug}`}>
+          <h3 className="font-heading text-base font-semibold text-text-primary leading-snug hover:underline">
             {product.name}
           </h3>
-          {product.category && (
-            <p className="text-body-sm text-text-secondary">
-              {product.category.name}
-            </p>
-          )}
-          <div className="flex items-center justify-between pt-1">
-            <span className="font-heading text-base font-semibold text-text-primary">
-              {formatPrice(product.price)}
-            </span>
-            <span className="inline-flex items-center gap-1 text-body-sm font-medium text-text-primary opacity-0 transition-opacity group-hover:opacity-100">
-              View Product
-              <ArrowRight className="size-3.5" />
-            </span>
-          </div>
+        </Link>
+        {product.category && (
+          <p className="text-body-sm text-text-secondary">
+            {product.category.name}
+          </p>
+        )}
+        <div className="flex items-center justify-between pt-1">
+          <span className="font-heading text-base font-semibold text-text-primary">
+            {formatPrice(product.price)}
+          </span>
+          <AddToCartButton product={product} variant="compact" />
         </div>
-      </Link>
+      </div>
     </motion.div>
   );
 }
