@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Plus, Search } from "lucide-react";
 import { AdminHeader } from "@/components/admin/header";
 import { StatusBadge } from "@/components/admin/status-badge";
-import { mockOrders } from "@/lib/mock-data";
+import { dbGetOrders } from "@/lib/db-simulator";
 import { formatPrice, formatDate, ORDER_STATUSES, type OrderStatus } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Order } from "@/types";
 
 const statusTabs: { label: string; value: OrderStatus | "ALL" }[] = [
   { label: "All", value: "ALL" },
@@ -29,10 +30,17 @@ const statusTabs: { label: string; value: OrderStatus | "ALL" }[] = [
 ];
 
 export default function OrdersPage() {
+  const [orders, setOrders] = useState<Order[]>([]);
   const [activeTab, setActiveTab] = useState<OrderStatus | "ALL">("ALL");
   const [search, setSearch] = useState("");
+  const [mounted, setMounted] = useState(false);
 
-  const filtered = mockOrders.filter((order) => {
+  useEffect(() => {
+    setOrders(dbGetOrders());
+    setMounted(true);
+  }, []);
+
+  const filtered = orders.filter((order) => {
     const matchesTab = activeTab === "ALL" || order.status === activeTab;
     const matchesSearch =
       !search ||
@@ -40,6 +48,14 @@ export default function OrdersPage() {
       order.customer?.name.toLowerCase().includes(search.toLowerCase());
     return matchesTab && matchesSearch;
   });
+
+  if (!mounted) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-[#FAFAFA]">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#111111] border-t-transparent" />
+      </div>
+    );
+  }
 
   return (
     <>
@@ -86,7 +102,7 @@ export default function OrdersPage() {
           </div>
 
           {/* Table */}
-          <div className="mt-4 rounded-[20px] border border-[#EAEAEA] bg-white">
+          <div className="mt-4 rounded-[20px] border border-[#EAEAEA] bg-white overflow-hidden shadow-sm">
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
@@ -101,34 +117,34 @@ export default function OrdersPage() {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="px-6 py-12 text-center text-[#999999]">
-                      No orders found.
+                    <TableCell colSpan={6} className="h-24 text-center text-sm text-[#999999]">
+                      No orders found matching the filter criteria.
                     </TableCell>
                   </TableRow>
                 ) : (
                   filtered.map((order) => (
-                    <TableRow key={order.id} className="cursor-pointer hover:bg-[#FAFAFA]">
-                      <TableCell className="px-6">
-                        <Link
-                          href={`/admin/orders/${order.id}`}
-                          className="font-medium text-[#111111] hover:underline"
-                        >
+                    <TableRow
+                      key={order.id}
+                      className="cursor-pointer hover:bg-[#FAFAFA]"
+                    >
+                      <TableCell className="px-6 py-4 font-medium text-[#111111]">
+                        <Link href={`/admin/orders/${order.id}`} className="hover:underline">
                           {order.orderNumber}
                         </Link>
                       </TableCell>
-                      <TableCell className="text-[#666666]">
-                        {order.customer?.name ?? "—"}
+                      <TableCell className="text-[#666666] py-4">
+                        {order.customer?.name}
                       </TableCell>
-                      <TableCell className="text-[#666666]">
-                        {order.items?.length ?? 0} {(order.items?.length ?? 0) === 1 ? "item" : "items"}
+                      <TableCell className="text-[#666666] py-4">
+                        {order.items?.length ?? 0} item{(order.items?.length ?? 0) === 1 ? "" : "s"}
                       </TableCell>
-                      <TableCell className="font-medium text-[#111111]">
+                      <TableCell className="font-medium text-[#111111] py-4">
                         {formatPrice(order.total)}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-4">
                         <StatusBadge status={order.status} type="order" />
                       </TableCell>
-                      <TableCell className="text-[#666666]">
+                      <TableCell className="text-[#666666] py-4">
                         {formatDate(order.createdAt)}
                       </TableCell>
                     </TableRow>

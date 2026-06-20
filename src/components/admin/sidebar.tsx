@@ -2,8 +2,9 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { ADMIN_NAV_ITEMS } from "@/lib/constants";
 import {
   LayoutDashboard,
@@ -36,6 +37,13 @@ const iconMap: Record<string, React.ReactNode> = {
 
 function SidebarContent() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    sessionStorage.removeItem("stuti_admin_logged_in");
+    toast.success("Logged out successfully");
+    router.replace("/admin/login");
+  };
 
   return (
     <div className="flex h-full flex-col">
@@ -99,6 +107,7 @@ function SidebarContent() {
             <p className="truncate text-xs text-[#999999]">admin@stutitraders.com</p>
           </div>
           <Button
+            onClick={handleLogout}
             variant="ghost"
             size="icon"
             className="h-8 w-8 shrink-0 text-[#999999] hover:text-[#111111]"

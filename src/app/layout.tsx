@@ -40,6 +40,8 @@ export const metadata: Metadata = {
   },
 };
 
+import { DbInitializer } from "@/components/db-initializer";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -52,6 +54,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <TooltipProvider>
+          <DbInitializer />
           {children}
         </TooltipProvider>
         <Toaster position="bottom-right" />

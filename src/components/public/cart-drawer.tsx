@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Minus, Plus, ShoppingBag, Trash2, X, MessageCircle, ArrowLeft } from "lucide-react";
 import { useCartStore, CartItem } from "@/lib/cart-store";
+import { dbAddOrderInquiry } from "@/lib/db-simulator";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -119,8 +120,15 @@ export function CartDrawer() {
     // Save details to localStorage for convenience on future orders
     localStorage.setItem("stuti_wholesale_details", JSON.stringify(form));
 
+    // Save order & customer to the database simulator (localStorage)
+    dbAddOrderInquiry(form, items);
+
     // Generate WhatsApp URL
     const whatsappUrl = getWhatsAppOrderUrl(form);
+
+    // Clear cart and close drawer
+    clearCart();
+    setOpen(false);
 
     // Open WhatsApp
     window.open(whatsappUrl, "_blank", "noopener,noreferrer");

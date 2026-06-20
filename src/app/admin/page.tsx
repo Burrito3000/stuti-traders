@@ -1,11 +1,12 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { AdminHeader } from "@/components/admin/header";
 import { StatCard } from "@/components/admin/stat-card";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { ActivityFeed } from "@/components/admin/activity-feed";
 import { StaggerList, StaggerItem } from "@/components/motion/animations";
-import { mockDashboardStats } from "@/lib/mock-data";
+import { dbGetDashboardStats } from "@/lib/db-simulator";
 import { formatPrice, formatDate } from "@/lib/constants";
 import { Package, Users, ShoppingCart, DollarSign, ArrowRight } from "lucide-react";
 import Link from "next/link";
@@ -20,7 +21,21 @@ import {
 import { Button } from "@/components/ui/button";
 
 export default function DashboardPage() {
-  const stats = mockDashboardStats;
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    setData(dbGetDashboardStats());
+  }, []);
+
+  if (!data) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-[#FAFAFA]">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#111111] border-t-transparent" />
+      </div>
+    );
+  }
+
+  const { stats, recentOrders, recentActivity } = data;
 
   return (
     <>
@@ -34,7 +49,7 @@ export default function DashboardPage() {
                 icon={<Package className="h-5 w-5" />}
                 value={stats.totalProducts}
                 label="Total Products"
-                trend={{ value: "+3", positive: true }}
+                trend={{ value: stats.productsTrend, positive: true }}
               />
             </StaggerItem>
             <StaggerItem>
@@ -42,7 +57,7 @@ export default function DashboardPage() {
                 icon={<Users className="h-5 w-5" />}
                 value={stats.totalCustomers}
                 label="Total Customers"
-                trend={{ value: "+1", positive: true }}
+                trend={{ value: stats.customersTrend, positive: true }}
               />
             </StaggerItem>
             <StaggerItem>
@@ -50,15 +65,15 @@ export default function DashboardPage() {
                 icon={<ShoppingCart className="h-5 w-5" />}
                 value={stats.totalOrders}
                 label="Total Orders"
-                trend={{ value: "+12%", positive: true }}
+                trend={{ value: stats.ordersTrend, positive: true }}
               />
             </StaggerItem>
             <StaggerItem>
               <StatCard
                 icon={<DollarSign className="h-5 w-5" />}
-                value={formatPrice(stats.revenueThisMonth)}
-                label="Revenue This Month"
-                trend={{ value: "+8.2%", positive: true }}
+                value={formatPrice(stats.monthlyRevenue)}
+                label="Estimated Revenue"
+                trend={{ value: stats.revenueTrend, positive: true }}
               />
             </StaggerItem>
           </StaggerList>
@@ -67,7 +82,7 @@ export default function DashboardPage() {
           <div className="mt-8 grid grid-cols-1 gap-6 xl:grid-cols-3">
             {/* Recent Orders */}
             <div className="col-span-1 xl:col-span-2">
-              <div className="rounded-[20px] border border-[#EAEAEA] bg-white">
+              <div className="rounded-[20px] border border-[#EAEAEA] bg-white overflow-hidden shadow-sm">
                 <div className="flex items-center justify-between border-b border-[#EAEAEA] px-6 py-4">
                   <h2 className="text-sm font-semibold text-[#111111]">
                     Recent Orders
@@ -104,33 +119,41 @@ export default function DashboardPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {stats.recentOrders.map((order) => (
-                      <TableRow
-                        key={order.id}
-                        className="cursor-pointer hover:bg-[#FAFAFA]"
-                      >
-                        <TableCell className="px-6 font-medium text-[#111111]">
-                          <Link
-                            href={`/admin/orders/${order.id}`}
-                            className="hover:underline"
-                          >
-                            {order.orderNumber}
-                          </Link>
-                        </TableCell>
-                        <TableCell className="text-[#666666]">
-                          {order.customer?.name}
-                        </TableCell>
-                        <TableCell className="font-medium text-[#111111]">
-                          {formatPrice(order.total)}
-                        </TableCell>
-                        <TableCell>
-                          <StatusBadge status={order.status} type="order" />
-                        </TableCell>
-                        <TableCell className="text-[#666666]">
-                          {formatDate(order.createdAt)}
+                    {recentOrders.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="h-24 text-center text-sm text-[#999999]">
+                          No orders placed yet.
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      recentOrders.map((order: any) => (
+                        <TableRow
+                          key={order.id}
+                          className="cursor-pointer hover:bg-[#FAFAFA]"
+                        >
+                          <TableCell className="px-6 py-4 font-medium text-[#111111]">
+                            <Link
+                              href={`/admin/orders/${order.id}`}
+                              className="hover:underline"
+                            >
+                              {order.orderNumber}
+                            </Link>
+                          </TableCell>
+                          <TableCell className="text-[#666666] py-4">
+                            {order.customer?.name}
+                          </TableCell>
+                          <TableCell className="font-medium text-[#111111] py-4">
+                            {formatPrice(order.total)}
+                          </TableCell>
+                          <TableCell className="py-4">
+                            <StatusBadge status={order.status} type="order" />
+                          </TableCell>
+                          <TableCell className="text-[#666666] py-4">
+                            {formatDate(order.createdAt)}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -138,14 +161,20 @@ export default function DashboardPage() {
 
             {/* Recent Activity */}
             <div className="col-span-1">
-              <div className="rounded-[20px] border border-[#EAEAEA] bg-white">
+              <div className="rounded-[20px] border border-[#EAEAEA] bg-white overflow-hidden shadow-sm">
                 <div className="border-b border-[#EAEAEA] px-6 py-4">
                   <h2 className="text-sm font-semibold text-[#111111]">
                     Recent Activity
                   </h2>
                 </div>
                 <div className="p-3">
-                  <ActivityFeed activities={stats.recentActivity} />
+                  {recentActivity.length === 0 ? (
+                    <div className="py-12 text-center text-xs text-[#999999]">
+                      No recent activities recorded.
+                    </div>
+                  ) : (
+                    <ActivityFeed activities={recentActivity} />
+                  )}
                 </div>
               </div>
             </div>

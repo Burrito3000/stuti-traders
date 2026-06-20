@@ -1,15 +1,16 @@
 "use client";
 
-import { use } from "react";
+import { use, useState, useEffect } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, User, Package, FileText, Calendar } from "lucide-react";
 import { AdminHeader } from "@/components/admin/header";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { OrderTimeline } from "@/components/admin/order-timeline";
-import { mockOrders } from "@/lib/mock-data";
+import { dbGetOrders, dbSaveOrder } from "@/lib/db-simulator";
 import { formatPrice, formatDate, ORDER_STATUSES, type OrderStatus } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import {
   Table,
   TableBody,
@@ -24,6 +25,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Order, OrderStatusHistory } from "@/types";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -31,7 +33,25 @@ interface PageProps {
 
 export default function OrderDetailPage({ params }: PageProps) {
   const { id } = use(params);
-  const order = mockOrders.find((o) => o.id === id);
+  const [order, setOrder] = useState<Order | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    const orders = dbGetOrders();
+    const foundOrder = orders.find((o) => o.id === id);
+    if (foundOrder) {
+      setOrder(foundOrder);
+    }
+    setMounted(true);
+  }, [id]);
+
+  if (!mounted) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-[#FAFAFA]">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#111111] border-t-transparent" />
+      </div>
+    );
+  }
 
   if (!order) notFound();
 
@@ -45,6 +65,29 @@ export default function OrderDetailPage({ params }: PageProps) {
   };
 
   const availableTransitions = nextStatuses[order.status] || [];
+
+  const handleStatusUpdate = (newStatus: OrderStatus) => {
+    const historyEntry: OrderStatusHistory = {
+      id: `hist-${Date.now()}`,
+      orderId: order.id,
+      fromStatus: order.status,
+      toStatus: newStatus,
+      notes: `Status changed from ${ORDER_STATUSES[order.status].label} to ${ORDER_STATUSES[newStatus].label}.`,
+      createdAt: new Date().toISOString(),
+      changedBy: { name: "Admin" },
+    };
+
+    const updatedOrder: Order = {
+      ...order,
+      status: newStatus,
+      statusHistory: [historyEntry, ...(order.statusHistory || [])],
+      updatedAt: new Date().toISOString(),
+    };
+
+    dbSaveOrder(updatedOrder);
+    setOrder(updatedOrder);
+    toast.success(`Order status updated to ${ORDER_STATUSES[newStatus].label}`);
+  };
 
   return (
     <>
@@ -71,13 +114,14 @@ export default function OrderDetailPage({ params }: PageProps) {
                     Update Status
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="rounded-[12px] border-[#EAEAEA]">
+                <DropdownMenuContent align="end" className="rounded-[12px] border-[#EAEAEA] bg-white p-1 shadow-md">
                   {availableTransitions.map((status) => (
                     <DropdownMenuItem
                       key={status}
-                      className="rounded-[8px] cursor-pointer"
+                      onClick={() => handleStatusUpdate(status)}
+                      className="rounded-[8px] cursor-pointer flex items-center gap-2 px-3 py-2 text-xs hover:bg-[#F5F5F5]"
                     >
-                      <span className={`mr-2 inline-block h-2 w-2 rounded-full ${ORDER_STATUSES[status].dot}`} />
+                      <span className={`inline-block h-2 w-2 rounded-full ${ORDER_STATUSES[status].dot}`} />
                       {ORDER_STATUSES[status].label}
                     </DropdownMenuItem>
                   ))}
@@ -93,7 +137,7 @@ export default function OrderDetailPage({ params }: PageProps) {
             {/* Main Content */}
             <div className="col-span-1 space-y-6 xl:col-span-2">
               {/* Customer Card */}
-              <div className="rounded-[20px] border border-[#EAEAEA] bg-white p-6">
+              <div className="rounded-[20px] border border-[#EAEAEA] bg-white p-6 shadow-sm">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#F5F5F5]">
                     <User className="h-5 w-5 text-[#666666]" />
@@ -107,13 +151,13 @@ export default function OrderDetailPage({ params }: PageProps) {
                   <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
                     {order.customer.email && (
                       <div>
-                        <span className="text-[#999999]">Email</span>
+                        <span className="text-[#999999] text-xs">Email</span>
                         <p className="mt-0.5 text-[#111111]">{order.customer.email}</p>
                       </div>
                     )}
                     {order.customer.phone && (
                       <div>
-                        <span className="text-[#999999]">Phone</span>
+                        <span className="text-[#999999] text-xs">Phone</span>
                         <p className="mt-0.5 text-[#111111]">{order.customer.phone}</p>
                       </div>
                     )}
@@ -122,7 +166,7 @@ export default function OrderDetailPage({ params }: PageProps) {
               </div>
 
               {/* Order Items */}
-              <div className="rounded-[20px] border border-[#EAEAEA] bg-white">
+              <div className="rounded-[20px] border border-[#EAEAEA] bg-white overflow-hidden shadow-sm">
                 <div className="flex items-center gap-2 border-b border-[#EAEAEA] px-6 py-4">
                   <Package className="h-4 w-4 text-[#999999]" />
                   <h3 className="text-sm font-semibold text-[#111111]">Order Items</h3>
@@ -139,7 +183,7 @@ export default function OrderDetailPage({ params }: PageProps) {
                   <TableBody>
                     {order.items?.map((item) => (
                       <TableRow key={item.id} className="hover:bg-[#FAFAFA]">
-                        <TableCell className="px-6">
+                        <TableCell className="px-6 py-4">
                           <div>
                             <p className="font-medium text-[#111111]">{item.product?.name ?? "—"}</p>
                             {item.notes && (
@@ -147,9 +191,9 @@ export default function OrderDetailPage({ params }: PageProps) {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="text-[#666666]">{item.quantity}</TableCell>
-                        <TableCell className="text-[#666666]">{formatPrice(item.unitPrice)}</TableCell>
-                        <TableCell className="text-right font-medium text-[#111111]">
+                        <TableCell className="text-[#666666] py-4">{item.quantity}</TableCell>
+                        <TableCell className="text-[#666666] py-4">{formatPrice(item.unitPrice)}</TableCell>
+                        <TableCell className="text-right font-medium text-[#111111] py-4">
                           {formatPrice(item.totalPrice)}
                         </TableCell>
                       </TableRow>
@@ -157,13 +201,13 @@ export default function OrderDetailPage({ params }: PageProps) {
                   </TableBody>
                 </Table>
                 {/* Totals */}
-                <div className="border-t border-[#EAEAEA] px-6 py-4">
+                <div className="border-t border-[#EAEAEA] px-6 py-4 bg-[#FAFAFA]/50">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-[#666666]">Subtotal</span>
                     <span className="text-sm text-[#111111]">{formatPrice(order.subtotal)}</span>
                   </div>
                   <div className="mt-2 flex items-center justify-between border-t border-[#EAEAEA] pt-3">
-                    <span className="text-sm font-semibold text-[#111111]">Total</span>
+                    <span className="text-sm font-semibold text-[#111111]">Total Value</span>
                     <span className="text-lg font-bold text-[#111111]">{formatPrice(order.total)}</span>
                   </div>
                 </div>
@@ -171,7 +215,7 @@ export default function OrderDetailPage({ params }: PageProps) {
 
               {/* Notes */}
               {order.notes && (
-                <div className="rounded-[20px] border border-[#EAEAEA] bg-white p-6">
+                <div className="rounded-[20px] border border-[#EAEAEA] bg-white p-6 shadow-sm">
                   <div className="flex items-center gap-2 mb-3">
                     <FileText className="h-4 w-4 text-[#999999]" />
                     <h3 className="text-sm font-semibold text-[#111111]">Notes</h3>
@@ -183,7 +227,7 @@ export default function OrderDetailPage({ params }: PageProps) {
 
             {/* Sidebar — Status History */}
             <div className="col-span-1">
-              <div className="rounded-[20px] border border-[#EAEAEA] bg-white">
+              <div className="rounded-[20px] border border-[#EAEAEA] bg-white shadow-sm">
                 <div className="flex items-center gap-2 border-b border-[#EAEAEA] px-6 py-4">
                   <Calendar className="h-4 w-4 text-[#999999]" />
                   <h3 className="text-sm font-semibold text-[#111111]">Status History</h3>

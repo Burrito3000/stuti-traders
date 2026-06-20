@@ -3,9 +3,9 @@
 import * as React from "react";
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/header";
-import { mockCustomers } from "@/lib/mock-data";
+import { dbGetCustomers } from "@/lib/db-simulator";
 import { formatPrice, formatDate } from "@/lib/constants";
-import { Plus, Search, Mail, Phone } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -17,21 +17,38 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Customer } from "@/types";
 
 export default function CustomersPage() {
+  const [customers, setCustomers] = React.useState<Customer[]>([]);
   const [search, setSearch] = React.useState("");
+  const [mounted, setMounted] = React.useState(false);
 
-  const filteredCustomers = mockCustomers.filter(
+  React.useEffect(() => {
+    setCustomers(dbGetCustomers());
+    setMounted(true);
+  }, []);
+
+  const filteredCustomers = customers.filter(
     (customer) =>
       customer.name.toLowerCase().includes(search.toLowerCase()) ||
       customer.email?.toLowerCase().includes(search.toLowerCase()) ||
-      customer.phone?.includes(search),
+      customer.phone?.includes(search)
   );
+
+  if (!mounted) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-[#FAFAFA]">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#111111] border-t-transparent" />
+      </div>
+    );
+  }
 
   return (
     <>
       <AdminHeader
         title="Customers"
+        description="Manage customer profiles and activity"
         actions={
           <Button className="h-9 gap-2 rounded-[14px] bg-[#111111] px-4 text-sm font-medium text-white hover:bg-[#333333]">
             <Plus className="h-4 w-4" />
@@ -55,7 +72,7 @@ export default function CustomersPage() {
           </div>
 
           {/* Table */}
-          <div className="rounded-[20px] border border-[#EAEAEA] bg-white">
+          <div className="rounded-[20px] border border-[#EAEAEA] bg-white overflow-hidden shadow-sm">
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
@@ -80,71 +97,61 @@ export default function CustomersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCustomers.map((customer) => {
-                  const initials = customer.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .slice(0, 2);
+                {filteredCustomers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-24 text-center text-sm text-[#999999]">
+                      No customers found.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredCustomers.map((customer) => {
+                    const initials = customer.name
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .slice(0, 2);
 
-                  return (
-                    <TableRow
-                      key={customer.id}
-                      className="group cursor-pointer hover:bg-[#FAFAFA]"
-                    >
-                      <TableCell className="px-6">
-                        <Link
-                          href={`/admin/customers/${customer.id}`}
-                          className="flex items-center gap-3"
-                        >
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback className="bg-[#F5F5F5] text-[10px] font-medium text-[#666666]">
-                              {initials}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="font-medium text-[#111111] group-hover:underline">
-                            {customer.name}
-                          </span>
-                        </Link>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1.5 text-[#666666]">
-                          <Mail className="h-3.5 w-3.5 text-[#999999]" />
-                          {customer.email || "—"}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1.5 text-[#666666]">
-                          <Phone className="h-3.5 w-3.5 text-[#999999]" />
-                          {customer.phone || "—"}
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-medium text-[#111111]">
-                        {customer._count?.orders || 0}
-                      </TableCell>
-                      <TableCell className="font-medium text-[#111111]">
-                        {formatPrice(customer.totalRevenue || 0)}
-                      </TableCell>
-                      <TableCell className="text-[#666666]">
-                        {formatDate(customer.createdAt)}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                    return (
+                      <TableRow
+                        key={customer.id}
+                        className="group cursor-pointer hover:bg-[#FAFAFA]"
+                      >
+                        <TableCell className="px-6 py-4">
+                          <Link
+                            href={`/admin/customers/${customer.id}`}
+                            className="flex items-center gap-3"
+                          >
+                            <Avatar className="h-8 w-8 rounded-full border border-[#EAEAEA]">
+                              <AvatarFallback className="text-[11px] font-semibold bg-[#111111]/5 text-[#111111] rounded-full">
+                                {initials}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium text-[#111111] hover:underline">
+                              {customer.name}
+                            </span>
+                          </Link>
+                        </TableCell>
+                        <TableCell className="text-[#666666] py-4">
+                          {customer.email ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-[#666666] py-4">
+                          {customer.phone ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-[#666666] py-4">
+                          {customer._count?.orders ?? 0} order{(customer._count?.orders ?? 0) === 1 ? "" : "s"}
+                        </TableCell>
+                        <TableCell className="font-medium text-[#111111] py-4">
+                          {formatPrice(customer.totalRevenue ?? 0)}
+                        </TableCell>
+                        <TableCell className="text-[#666666] py-4">
+                          {formatDate(customer.createdAt)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
               </TableBody>
             </Table>
-
-            {filteredCustomers.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-16">
-                <Search className="mb-3 h-8 w-8 text-[#CCCCCC]" />
-                <p className="text-sm font-medium text-[#666666]">
-                  No customers found
-                </p>
-                <p className="mt-1 text-xs text-[#999999]">
-                  Try adjusting your search term
-                </p>
-              </div>
-            )}
           </div>
         </div>
       </div>

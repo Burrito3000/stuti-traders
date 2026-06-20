@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { AdminHeader } from "@/components/admin/header";
-import { mockCategories } from "@/lib/mock-data";
+import { dbGetCategories, dbSaveProduct } from "@/lib/db-simulator";
 import {
   ArrowLeft,
   Upload,
@@ -59,6 +59,11 @@ export default function NewProductPage() {
 
   // Validation state
   const [errors, setErrors] = React.useState<Record<string, string>>({});
+  const [categories, setCategories] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    setCategories(dbGetCategories());
+  }, []);
 
   // Auto-generate slug from name
   React.useEffect(() => {
@@ -99,10 +104,57 @@ export default function NewProductPage() {
   const handleSubmit = (publishStatus: string) => {
     if (!validate()) return;
 
+    const specRecord: Record<string, string> = {};
+    specifications.forEach((s) => {
+      if (s.key.trim() && s.value.trim()) {
+        specRecord[s.key.trim()] = s.value.trim();
+      }
+    });
+
+    const selectedCategory = categories.find((c) => c.id === categoryId);
+
+    const newProduct = {
+      id: `prod-${Date.now()}`,
+      name,
+      slug,
+      sku: sku || null,
+      description: description || null,
+      price: parseFloat(price),
+      categoryId,
+      category: selectedCategory
+        ? {
+            id: selectedCategory.id,
+            name: selectedCategory.name,
+            slug: selectedCategory.slug,
+            description: null,
+            imageUrl: null,
+            sortOrder: 0,
+          }
+        : null,
+      status: publishStatus as any,
+      specifications: Object.keys(specRecord).length > 0 ? specRecord : null,
+      seoTitle: seoTitle || null,
+      seoDescription: seoDescription || null,
+      images: [
+        {
+          id: `img-${Date.now()}`,
+          productId: `prod-${Date.now()}`,
+          url: "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=800&q=80",
+          alt: name,
+          sortOrder: 0,
+          isPrimary: true,
+        },
+      ],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    dbSaveProduct(newProduct);
+
     toast.success(
       publishStatus === "ACTIVE"
         ? "Product published successfully"
-        : "Product saved as draft",
+        : "Product saved as draft"
     );
     router.push("/admin/products");
   };
@@ -219,7 +271,7 @@ export default function NewProductPage() {
                     </Label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#999999]">
-                        $
+                        ₹
                       </span>
                       <Input
                         id="price"
@@ -246,7 +298,7 @@ export default function NewProductPage() {
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl">
-                        {mockCategories.map((cat) => (
+                        {categories.map((cat) => (
                           <SelectItem key={cat.id} value={cat.id} className="rounded-lg">
                             {cat.name}
                           </SelectItem>

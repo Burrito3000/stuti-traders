@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { ProductCard } from "@/components/public/product-card";
 import { StaggerList, StaggerItem } from "@/components/motion/animations";
+import { dbGetProducts, dbGetCategories } from "@/lib/db-simulator";
 import type { Product, Category } from "@/types";
 
 interface ProductGridProps {
@@ -13,12 +14,22 @@ interface ProductGridProps {
 }
 
 export function ProductGrid({ products, categories }: ProductGridProps) {
+  const [localProducts, setLocalProducts] = useState<Product[]>(products);
+  const [localCategories, setLocalCategories] = useState<Category[]>(categories);
   const [activeCategory, setActiveCategory] = useState<string>("all");
 
+  useEffect(() => {
+    // Dynamically sync with localStorage data simulator on mount
+    const dbProds = dbGetProducts().filter((p) => p.status === "ACTIVE");
+    const dbCats = dbGetCategories();
+    if (dbProds.length > 0) setLocalProducts(dbProds);
+    if (dbCats.length > 0) setLocalCategories(dbCats);
+  }, []);
+
   const filteredProducts = useMemo(() => {
-    if (activeCategory === "all") return products;
-    return products.filter((p) => p.categoryId === activeCategory);
-  }, [products, activeCategory]);
+    if (activeCategory === "all") return localProducts;
+    return localProducts.filter((p) => p.categoryId === activeCategory);
+  }, [localProducts, activeCategory]);
 
   return (
     <div className="space-y-10">
@@ -29,20 +40,20 @@ export function ProductGrid({ products, categories }: ProductGridProps) {
           className={cn(
             "rounded-full px-5 py-2.5 text-body-sm font-medium transition-all",
             activeCategory === "all"
-              ? "bg-text-primary text-white"
+              ? "bg-text-primary text-white shadow-sm"
               : "bg-[#F5F5F5] text-text-secondary hover:bg-[#EAEAEA] hover:text-text-primary"
           )}
         >
           All
         </button>
-        {categories.map((cat) => (
+        {localCategories.map((cat) => (
           <button
             key={cat.id}
             onClick={() => setActiveCategory(cat.id)}
             className={cn(
               "rounded-full px-5 py-2.5 text-body-sm font-medium transition-all",
               activeCategory === cat.id
-                ? "bg-text-primary text-white"
+                ? "bg-text-primary text-white shadow-sm"
                 : "bg-[#F5F5F5] text-text-secondary hover:bg-[#EAEAEA] hover:text-text-primary"
             )}
           >
