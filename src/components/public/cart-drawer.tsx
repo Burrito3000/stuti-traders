@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Minus, Plus, ShoppingBag, Trash2, X, MessageCircle, ArrowLeft } from "lucide-react";
-import { useCartStore } from "@/lib/cart-store";
+import { useCartStore, CartItem } from "@/lib/cart-store";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -18,6 +18,7 @@ export function CartDrawer() {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<"cart" | "details">("cart");
   const items = useCartStore((s) => s.items);
+  const addItem = useCartStore((s) => s.addItem);
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const removeItem = useCartStore((s) => s.removeItem);
   const clearCart = useCartStore((s) => s.clearCart);
@@ -48,7 +49,28 @@ export function CartDrawer() {
     }
   }, []);
 
-  const itemCount = mounted ? getItemCount() : 0;
+  // Format the total items string cleanly by separating pcs and dzs
+  const getFormattedTotalItems = () => {
+    const pcs = items.filter((i) => i.unit === "pcs").reduce((sum, i) => sum + i.quantity, 0);
+    const dz = items.filter((i) => i.unit === "dz").reduce((sum, i) => sum + i.quantity, 0);
+
+    const parts = [];
+    if (pcs > 0) parts.push(`${pcs} unit${pcs === 1 ? "" : "s"}`);
+    if (dz > 0) parts.push(`${dz} dozen${dz === 1 ? "" : "s"}`);
+
+    return parts.length > 0 ? parts.join(", ") : "0 items";
+  };
+
+  const getFormattedSummary = () => {
+    const pcs = items.filter((i) => i.unit === "pcs").reduce((sum, i) => sum + i.quantity, 0);
+    const dz = items.filter((i) => i.unit === "dz").reduce((sum, i) => sum + i.quantity, 0);
+
+    const parts = [];
+    if (pcs > 0) parts.push(`${pcs} pcs`);
+    if (dz > 0) parts.push(`${dz} dz`);
+
+    return parts.length > 0 ? parts.join(" + ") : "0 items";
+  };
 
   // Reset checkout step when opening/closing
   useEffect(() => {
@@ -65,6 +87,12 @@ export function CartDrawer() {
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
+  };
+
+  const handleToggleUnit = (item: CartItem) => {
+    const nextUnit = item.unit === "pcs" ? "dz" : "pcs";
+    removeItem(item.product.id, item.unit);
+    addItem(item.product, item.quantity, nextUnit);
   };
 
   const handleProceedToDetails = () => {
@@ -96,10 +124,6 @@ export function CartDrawer() {
 
     // Open WhatsApp
     window.open(whatsappUrl, "_blank", "noopener,noreferrer");
-
-    // Optional: clear cart after successful order submission
-    // clearCart();
-    // setOpen(false);
   };
 
   return (
@@ -110,13 +134,13 @@ export function CartDrawer() {
         className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#111111] text-white shadow-[0_8px_30px_rgba(0,0,0,0.2)] transition-all hover:scale-105 hover:shadow-[0_12px_40px_rgba(0,0,0,0.3)] active:scale-95"
       >
         <ShoppingBag className="h-5 w-5" />
-        {mounted && itemCount > 0 && (
+        {mounted && items.length > 0 && (
           <motion.span
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-[10px] font-bold text-white"
           >
-            {itemCount}
+            {items.length}
           </motion.span>
         )}
       </button>
@@ -145,7 +169,7 @@ export function CartDrawer() {
                   </SheetTitle>
                   <SheetDescription className="mt-0.5 text-sm text-[#999999]">
                     {step === "cart"
-                      ? `${itemCount} item${itemCount === 1 ? "" : "s"} selected for wholesale enquiry`
+                      ? `${getFormattedTotalItems()} selected for wholesale enquiry`
                       : "Provide details to submit inquiry via WhatsApp"}
                   </SheetDescription>
                 </div>
@@ -192,7 +216,7 @@ export function CartDrawer() {
                     <AnimatePresence mode="popLayout">
                       {items.map((item) => (
                         <motion.div
-                          key={item.product.id}
+                          key={`${item.product.id}-${item.unit}`}
                           layout
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
@@ -219,19 +243,24 @@ export function CartDrawer() {
                               <p className="truncate text-sm font-medium text-[#111111]">
                                 {item.product.name}
                               </p>
-                              {item.product.sku && (
-                                <p className="mt-0.5 text-xs text-[#999999]">
-                                  SKU: {item.product.sku}
-                                </p>
-                              )}
+                              <div className="flex items-center gap-2 mt-0.5">
+                                {item.product.sku && (
+                                  <p className="text-[11px] text-[#999999]">
+                                    SKU: {item.product.sku}
+                                  </p>
+                                )}
+                                <span className="inline-block text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-[#F5F5F5] text-[#666666]">
+                                  {item.unit === "dz" ? "Dozens" : "Units"}
+                                </span>
+                              </div>
                             </div>
 
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-between mt-2">
                               {/* Quantity controls */}
                               <div className="flex items-center gap-1">
                                 <button
                                   onClick={() =>
-                                    updateQuantity(item.product.id, item.quantity - 1)
+                                    updateQuantity(item.product.id, item.unit, item.quantity - 1)
                                   }
                                   className="flex h-7 w-7 items-center justify-center rounded-[8px] border border-[#EAEAEA] text-[#666666] transition-colors hover:bg-[#F5F5F5]"
                                 >
@@ -242,22 +271,28 @@ export function CartDrawer() {
                                 </span>
                                 <button
                                   onClick={() =>
-                                    updateQuantity(item.product.id, item.quantity + 1)
+                                    updateQuantity(item.product.id, item.unit, item.quantity + 1)
                                   }
                                   className="flex h-7 w-7 items-center justify-center rounded-[8px] border border-[#EAEAEA] text-[#666666] transition-colors hover:bg-[#F5F5F5]"
                                 >
                                   <Plus className="h-3 w-3" />
                                 </button>
                               </div>
-                              <span className="text-[11px] font-medium text-[#666666]">
-                                wholesale order
-                              </span>
+
+                              {/* Unit Toggle Button */}
+                              <button
+                                type="button"
+                                onClick={() => handleToggleUnit(item)}
+                                className="rounded-[8px] border border-[#EAEAEA] bg-[#F5F5F5] px-2 py-1 text-[10px] font-bold text-[#666666] hover:bg-[#111111] hover:text-white transition-colors"
+                              >
+                                {item.unit === "pcs" ? "Switch to Dozens" : "Switch to Units"}
+                              </button>
                             </div>
                           </div>
 
                           {/* Remove */}
                           <button
-                            onClick={() => removeItem(item.product.id)}
+                            onClick={() => removeItem(item.product.id, item.unit)}
                             className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[#CCCCCC] transition-colors hover:bg-red-50 hover:text-red-500"
                           >
                             <X className="h-3.5 w-3.5" />
@@ -279,8 +314,8 @@ export function CartDrawer() {
                         Prices are negotiated based on volume.
                       </p>
                     </div>
-                    <span className="text-base font-bold text-[#111111]">
-                      {itemCount} unit{itemCount === 1 ? "" : "s"}
+                    <span className="text-sm font-bold text-[#111111] text-right">
+                      {getFormattedSummary()}
                     </span>
                   </div>
 
