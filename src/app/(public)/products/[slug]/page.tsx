@@ -109,9 +109,11 @@ export default async function ProductDetailPage({ params }: PageProps) {
               <h1 className="text-display-lg font-heading text-text-primary mt-2">
                 {product.name}
               </h1>
-              <p className="mt-4 font-heading text-[28px] font-semibold text-text-primary">
-                {formatPrice(product.price)}
-              </p>
+              <div className="mt-4">
+                <span className="inline-flex items-center rounded-full bg-[#111111]/5 px-3 py-1.5 text-xs font-semibold text-[#111111]">
+                  Wholesale Only — Pricing on Enquiry
+                </span>
+              </div>
 
               {product.description && (
                 <p className="mt-6 text-body-lg leading-relaxed text-text-secondary">

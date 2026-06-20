@@ -8,6 +8,14 @@ export interface CartItem {
   quantity: number;
 }
 
+export interface CustomerDetails {
+  name: string;
+  businessName: string;
+  phone: string;
+  address: string;
+  notes?: string;
+}
+
 interface CartStore {
   items: CartItem[];
   addItem: (product: Product, quantity?: number) => void;
@@ -16,7 +24,7 @@ interface CartStore {
   clearCart: () => void;
   getItemCount: () => number;
   getTotal: () => number;
-  getWhatsAppOrderUrl: () => string;
+  getWhatsAppOrderUrl: (details: CustomerDetails) => string;
 }
 
 export const useCartStore = create<CartStore>()(
@@ -71,42 +79,44 @@ export const useCartStore = create<CartStore>()(
         );
       },
 
-      getWhatsAppOrderUrl: () => {
+      getWhatsAppOrderUrl: (details) => {
         const { items } = get();
         if (items.length === 0) return "";
 
-        const total = get().getTotal();
         const itemCount = get().getItemCount();
 
         // Build formatted order message
         const lines: string[] = [];
-        lines.push("🛒 *New Order Request — Stuti Traders*");
+        lines.push("📋 *Wholesale Inquiry — Stuti Traders*");
         lines.push("━━━━━━━━━━━━━━━━━━━━━━");
         lines.push("");
+        lines.push("👤 *Customer/Business Details:*");
+        lines.push(`• Contact Name: ${details.name}`);
+        lines.push(`• Store/Business: ${details.businessName}`);
+        lines.push(`• Phone Number: ${details.phone}`);
+        lines.push(`• Delivery Address: ${details.address}`);
+        if (details.notes) {
+          lines.push(`• Notes/Requirements: ${details.notes}`);
+        }
+        lines.push("");
+        lines.push("━━━━━━━━━━━━━━━━━━━━━━");
+        lines.push("");
+        lines.push("📦 *Items Requested:*");
 
         items.forEach((item, index) => {
-          const lineTotal = item.product.price * item.quantity;
           lines.push(`*${index + 1}. ${item.product.name}*`);
           if (item.product.sku) {
             lines.push(`   SKU: ${item.product.sku}`);
           }
-          lines.push(
-            `   Qty: ${item.quantity} × ${formatPrice(item.product.price)} = *${formatPrice(lineTotal)}*`
-          );
+          lines.push(`   Quantity: ${item.quantity} unit${item.quantity === 1 ? "" : "s"}`);
           lines.push("");
         });
 
         lines.push("━━━━━━━━━━━━━━━━━━━━━━");
-        lines.push(`📦 Total Items: *${itemCount}*`);
-        lines.push(`💰 Order Total: *${formatPrice(total)}*`);
+        lines.push(`💼 Total Volume: *${itemCount} units*`);
         lines.push("━━━━━━━━━━━━━━━━━━━━━━");
         lines.push("");
-        lines.push("📍 *Delivery Details:*");
-        lines.push("Name: ");
-        lines.push("Address: ");
-        lines.push("Phone: ");
-        lines.push("");
-        lines.push("Please confirm availability and share payment details. 🙏");
+        lines.push("Please confirm availability and share the wholesale quotation/best rates. Thank you! 🙏");
 
         const message = encodeURIComponent(lines.join("\n"));
         const phone = WHATSAPP_NUMBER.replace(/[^0-9]/g, "");

@@ -65,8 +65,8 @@ export function ProductCard({ product }: ProductCardProps) {
           </p>
         )}
         <div className="flex items-center justify-between pt-1">
-          <span className="font-heading text-base font-semibold text-text-primary">
-            {formatPrice(product.price)}
+          <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider bg-[#F5F5F5] px-2 py-0.5 rounded-[6px]">
+            Wholesale
           </span>
           <AddToCartButton product={product} variant="compact" />
         </div>
