@@ -1,0 +1,241 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  STAFF
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum OrderStatus {
+  INQUIRY
+  QUOTATION_SENT
+  CONFIRMED
+  PROCESSING
+  DELIVERED
+  CANCELLED
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String    @map("password_hash")
+  role         UserRole  @default(STAFF)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  createdProducts  Product[]            @relation("ProductCreatedBy")
+  updatedProducts  Product[]            @relation("ProductUpdatedBy")
+  createdOrders    Order[]              @relation("OrderCreatedBy")
+  updatedOrders    Order[]              @relation("OrderUpdatedBy")
+  createdCustomers Customer[]           @relation("CustomerCreatedBy")
+  statusChanges    OrderStatusHistory[]
+  activityLogs     ActivityLog[]
+
+  @@index([email])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+model Product {
+  id             String        @id @default(cuid())
+  name           String
+  slug           String        @unique
+  sku            String?       @unique
+  description    String?       @db.Text
+  price          Decimal       @db.Decimal(10, 2)
+  categoryId     String?       @map("category_id")
+  status         ProductStatus @default(DRAFT)
+  specifications Json?
+  seoTitle       String?       @map("seo_title")
+  seoDescription String?       @map("seo_description") @db.Text
+  createdById    String?       @map("created_by_id")
+  updatedById    String?       @map("updated_by_id")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  deletedAt      DateTime?     @map("deleted_at")
+
+  category    Category?        @relation(fields: [categoryId], references: [id])
+  createdBy   User?            @relation("ProductCreatedBy", fields: [createdById], references: [id])
+  updatedBy   User?            @relation("ProductUpdatedBy", fields: [updatedById], references: [id])
+  images      ProductImage[]
+  orderItems  OrderItem[]
+  tags        TagsOnProducts[]
+
+  @@index([slug])
+  @@index([categoryId])
+  @@index([status])
+  @@index([deletedAt])
+  @@index([createdAt])
+  @@map("products")
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?   @db.Text
+  imageUrl    String?   @map("image_url")
+  sortOrder   Int       @default(0) @map("sort_order")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  products Product[]
+
+  @@index([slug])
+  @@index([sortOrder])
+  @@map("categories")
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String   @map("product_id")
+  url       String
+  alt       String?
+  sortOrder Int      @default(0) @map("sort_order")
+  isPrimary Boolean  @default(false) @map("is_primary")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_images")
+}
+
+model Tag {
+  id   String @id @default(cuid())
+  name String @unique
+  slug String @unique
+
+  products TagsOnProducts[]
+
+  @@map("tags")
+}
+
+model TagsOnProducts {
+  productId String @map("product_id")
+  tagId     String @map("tag_id")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([productId, tagId])
+  @@map("tags_on_products")
+}
+
+model Customer {
+  id          String    @id @default(cuid())
+  name        String
+  phone       String?
+  whatsapp    String?
+  email       String?
+  address     String?   @db.Text
+  notes       String?   @db.Text
+  createdById String?   @map("created_by_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  createdBy User?   @relation("CustomerCreatedBy", fields: [createdById], references: [id])
+  orders    Order[]
+
+  @@index([phone])
+  @@index([email])
+  @@index([deletedAt])
+  @@index([createdAt])
+  @@map("customers")
+}
+
+model Order {
+  id          String      @id @default(cuid())
+  orderNumber String      @unique @map("order_number")
+  customerId  String      @map("customer_id")
+  status      OrderStatus @default(INQUIRY)
+  subtotal    Decimal     @db.Decimal(10, 2)
+  total       Decimal     @db.Decimal(10, 2)
+  notes       String?     @db.Text
+  createdById String?     @map("created_by_id")
+  updatedById String?     @map("updated_by_id")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  deletedAt   DateTime?   @map("deleted_at")
+
+  customer      Customer             @relation(fields: [customerId], references: [id])
+  createdBy     User?                @relation("OrderCreatedBy", fields: [createdById], references: [id])
+  updatedBy     User?                @relation("OrderUpdatedBy", fields: [updatedById], references: [id])
+  items         OrderItem[]
+  statusHistory OrderStatusHistory[]
+
+  @@index([orderNumber])
+  @@index([customerId])
+  @@index([status])
+  @@index([deletedAt])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id         String  @id @default(cuid())
+  orderId    String  @map("order_id")
+  productId  String  @map("product_id")
+  quantity   Int
+  unitPrice  Decimal @map("unit_price") @db.Decimal(10, 2)
+  totalPrice Decimal @map("total_price") @db.Decimal(10, 2)
+  notes      String? @db.Text
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+model OrderStatusHistory {
+  id          String       @id @default(cuid())
+  orderId     String       @map("order_id")
+  fromStatus  OrderStatus? @map("from_status")
+  toStatus    OrderStatus  @map("to_status")
+  notes       String?      @db.Text
+  changedById String?      @map("changed_by_id")
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  order     Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  changedBy User? @relation(fields: [changedById], references: [id])
+
+  @@index([orderId])
+  @@index([createdAt])
+  @@map("order_status_history")
+}
+
+model ActivityLog {
+  id         String   @id @default(cuid())
+  userId     String?  @map("user_id")
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
